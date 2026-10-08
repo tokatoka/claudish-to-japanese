@@ -77,7 +77,7 @@ DEBUG="${CLAUDISH_DEBUG:-0}"
 NOTICE="${CLAUDISH_NOTICE:-1}"
 
 MARKER="<!-- claudish-to-english:rewritten -->"
-LOG_ROOT="${TMPDIR:-/tmp}/claudish-to-english"
+LOG_ROOT="${TMPDIR:-/tmp}/claudish-to-japanese"
 mkdir -p "$LOG_ROOT" 2>/dev/null || true
 
 dbg() { [ "$DEBUG" = "1" ] && printf '%s [%s] %s\n' "$(date '+%H:%M:%S')" "$$" "$*" >> "$LOG_ROOT/debug-md.log" 2>/dev/null; return 0; }
@@ -95,6 +95,7 @@ SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 # degrades to "no configured language" — the rewrite then keeps the file's own
 # language — instead of stopping rewrites.
 claudish_language() { :; }
+claudish_is_japanese() { return 1; }
 . "$SELF_DIR/lang.sh" 2>/dev/null || dbg "no lang.sh; keeping the file's language"
 
 # Print the canonical absolute path of $1 (its parent directory must exist).
@@ -203,6 +204,9 @@ else
   # prompt in full, and it states its own language.
   if [ -n "$OUT_LANG" ]; then
     sys="$sys"$'\n\n'"Write the rewritten Markdown in $OUT_LANG instead, whatever language the original is in. Use $OUT_LANG for all prose, including headings, list items, and table cells. Keep code, identifiers, file paths, link targets, and YAML frontmatter exactly as they are."
+    if claudish_is_japanese "$OUT_LANG"; then
+      sys="$sys"$'\n\n'"Because the target is Japanese, write easy Japanese (やさしい日本語): short sentences, the polite です/ます form, and everyday words instead of hard kanji compounds."
+    fi
   fi
   if [ -n "${CLAUDISH_MD_PROMPT_FILE:-}" ]; then
     _p=""
@@ -230,7 +234,7 @@ if [ -z "$rewrite" ]; then
     [ -n "$NOTICE_WHY" ] && why="$NOTICE_WHY — Markdown rewrite of $(basename "$file") skipped, file left unchanged."
     if [ -n "$why" ]; then
       : > "$notified" 2>/dev/null || true
-      jq -n --arg m "claudish-to-english: $why (shown once per session; set CLAUDISH_NOTICE=0 to silence)" \
+      jq -n --arg m "claudish-to-japanese: $why (shown once per session; set CLAUDISH_NOTICE=0 to silence)" \
         '{systemMessage:$m}' 2>/dev/null
       dbg "emitted setup notice"
       exit 0
@@ -264,7 +268,7 @@ if [ "$NOTICE" = "1" ] && [ ! -e "$oauth_noted" ]; then
   _onote="$(llm_oauth_note 2>/dev/null)"
   if [ -n "$_onote" ]; then
     : > "$oauth_noted" 2>/dev/null || true
-    jq -n --arg m "claudish-to-english: $_onote. Shown once per session; set CLAUDISH_NOTICE=0 to silence." \
+    jq -n --arg m "claudish-to-japanese: $_onote. Shown once per session; set CLAUDISH_NOTICE=0 to silence." \
       '{systemMessage:$m}' 2>/dev/null
   fi
 fi

@@ -85,10 +85,17 @@ else
   OPENAI_EFFORT=""
 fi
 
+if [ -n "${CLAUDISH_PI_THINKING+x}" ]; then
+  PI_THINKING="$CLAUDISH_PI_THINKING"
+else
+  PI_THINKING="off"
+fi
+
 case "$PROVIDER" in
   anthropic) MODEL="${CLAUDISH_MODEL:-claude-haiku-4-5}" ;;
   openai)    MODEL="${CLAUDISH_MODEL:-gpt-5.6-luna}" ;;
   codex)     MODEL="${CLAUDISH_MODEL:-}" ;;  # empty = the codex CLI's configured default
+  pi)        MODEL="${CLAUDISH_MODEL:-}" ;;
   *)         MODEL="${CLAUDISH_MODEL:-gemma4:26b-mlx}" ;;
 esac
 
@@ -309,6 +316,44 @@ $_user" >/dev/null 2>"$_errf" &
       fi
       rm -f "$_out" "$_errf" 2>/dev/null
       ;;
+    pi)
+      if ! command -v pi >/dev/null 2>&1; then
+        dbg "pi: CLI not found"; curl_rc=1; return 0
+      fi
+      _in="$(mktemp "${TMPDIR:-/tmp}/claudish-pi-in.XXXXXX" 2>/dev/null)" || return 2
+      _out="$(mktemp "${TMPDIR:-/tmp}/claudish-pi-out.XXXXXX" 2>/dev/null)" || { rm -f "$_in"; return 2; }
+      _errf="$(mktemp "${TMPDIR:-/tmp}/claudish-pi-err.XXXXXX" 2>/dev/null)" || { rm -f "$_in" "$_out"; return 2; }
+      trap 'rm -f "$_in" "$_out" "$_errf" 2>/dev/null' EXIT
+      printf '%s' "$_user" > "$_in" 2>/dev/null || { rm -f "$_in" "$_out" "$_errf"; return 2; }
+      (
+        cd "${TMPDIR:-/tmp}" 2>/dev/null || cd / || exit 1
+        PI_OFFLINE=1 exec pi -p --no-session --no-tools --no-extensions --no-skills \
+          --no-context-files --no-prompt-templates --no-mcp --no-themes --no-approve \
+          ${MODEL:+--model "$MODEL"} ${PI_THINKING:+--thinking "$PI_THINKING"} \
+          --system-prompt "$_sys"
+      ) < "$_in" > "$_out" 2> "$_errf" &
+      _pid=$!
+      _t=0; _tick=0
+      while kill -0 "$_pid" 2>/dev/null; do
+        if [ "$_t" -ge "$LLM_TIMEOUT" ] 2>/dev/null; then
+          kill -TERM "$_pid" 2>/dev/null; wait "$_pid" 2>/dev/null
+          curl_rc=28
+          rm -f "$_in" "$_out" "$_errf" 2>/dev/null
+          dbg "pi timed out after ${LLM_TIMEOUT}s"
+          return 0
+        fi
+        sleep 0.2; _tick=$((_tick + 1))
+        [ "$_tick" -ge 5 ] && { _tick=0; _t=$((_t + 1)); }
+      done
+      wait "$_pid"; _rc=$?
+      rewrite="$(cat "$_out" 2>/dev/null)"
+      if [ "$_rc" != "0" ]; then
+        err="$(tail -c 400 "$_errf" 2>/dev/null | tr '\n' ' ' | sed 's/ *$//')"
+        err="${err:-pi exited with status $_rc}"
+        rewrite=""
+      fi
+      rm -f "$_in" "$_out" "$_errf" 2>/dev/null
+      ;;
     *)
       req="$(jq -n --arg m "$MODEL" --arg s "$_sys" --arg u "$_user" \
             '{model:$m,stream:false,think:false,options:{temperature:0.3},messages:[{role:"system",content:$s},{role:"user",content:$u}]}' 2>/dev/null)"
@@ -387,13 +432,13 @@ llm_notice_why() {
         NOTICE_WHY="cannot reach ${OPENAI_URL} (curl exit $curl_rc)"
       fi
       ;;
-    codex)
-      if ! command -v codex >/dev/null 2>&1; then
-        NOTICE_WHY="the codex CLI is not on PATH (install it or pick another CLAUDISH_PROVIDER), so rewrites are off"
+    codex|pi)
+      if ! command -v "$PROVIDER" >/dev/null 2>&1; then
+        NOTICE_WHY="the $PROVIDER CLI is not on PATH (install it or pick another CLAUDISH_PROVIDER), so rewrites are off"
       elif [ "$curl_rc" = "28" ]; then
         NOTICE_WHY="the rewrite timed out after ${LLM_TIMEOUT}s — ${TIMEOUT_HINT:-raise the timeout}"
       elif [ -n "${err:-}" ]; then
-        NOTICE_WHY="codex error: ${err}"
+        NOTICE_WHY="$PROVIDER error: ${err}"
       fi
       ;;
     *)

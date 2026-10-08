@@ -76,17 +76,13 @@ claudish_language() {
     return 0
   fi
 
-  _cl_cwd="${1:-$PWD}"
-  for _cl_f in "$_cl_cwd/.claude/settings.local.json" \
-               "$_cl_cwd/.claude/settings.json" \
-               "${HOME:-}/.claude/settings.json"; do
-    [ -r "$_cl_f" ] || continue
-    # Guard the type: a `language` that is not a string (null, number, object)
-    # must read as "unset", not as its jq stringification.
-    _cl_v="$(jq -r 'if (.language | type) == "string" then .language else empty end' \
-             "$_cl_f" 2>/dev/null)"
-    _cl_v="$(_claudish_lang_clean "$_cl_v")"
-    if [ -n "$_cl_v" ]; then printf '%s' "$_cl_v"; return 0; fi
-  done
+  printf 'Japanese'
   return 0
+}
+
+claudish_is_japanese() {
+  case "$1" in
+    [Jj]apanese|JAPANESE|日本語|ja|JA|ja-JP|ja_JP) return 0 ;;
+  esac
+  return 1
 }

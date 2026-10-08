@@ -118,7 +118,7 @@ LLM_TIMEOUT="${CLAUDISH_TIMEOUT:-45}"
 DEBUG="${CLAUDISH_DEBUG:-0}"
 NOTICE="${CLAUDISH_NOTICE:-1}"
 
-BUF_ROOT="${TMPDIR:-/tmp}/claudish-to-english"
+BUF_ROOT="${TMPDIR:-/tmp}/claudish-to-japanese"
 # SEP (the on-screen label above the rewrite) names the configured output
 # language, so it is built on the final chunk, once that language is known.
 
@@ -139,6 +139,7 @@ SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 # degrades to "no configured language" — the rewrite then keeps the message's
 # own language — instead of stopping rewrites.
 claudish_language() { :; }
+claudish_is_japanese() { return 1; }
 . "$SELF_DIR/lang.sh" 2>/dev/null || dbg "no lang.sh; keeping the message's language"
 
 # Replace this chunk's on-screen text with $1 (a temp file, read and then
@@ -264,11 +265,19 @@ OUT_LANG="$(claudish_language "$cwd")"
 # `claude -p` output piped to a file. Bold is an attribute, not a palette
 # lookup, so it survives every theme and degrades to readable `**word**` text
 # when the output is not a terminal at all.
+_ja_tag="${OUT_LANG:+（$OUT_LANG）}"
+claudish_is_japanese "$OUT_LANG" && _ja_tag=""
 case "$STYLE" in
-  tldr)    SEP=$'\n\n────────────────────────\n📌 **TL;DR**'"${OUT_LANG:+ in $OUT_LANG}"$':\n\n' ;;
-  5y)      SEP=$'\n\n────────────────────────\n👶 Like you\'re **five**'"${OUT_LANG:+, in $OUT_LANG}"$':\n\n' ;;
-  caveman) SEP=$'\n\n────────────────────────\n🦴 **Ugh.** Me say'"${OUT_LANG:+ in $OUT_LANG}"$':\n\n' ;;
-  *)       SEP=$'\n\n────────────────────────\n💬 In plain **'"${OUT_LANG:-language}"$'**:\n\n' ;;
+  tldr)    SEP=$'\n\n────────────────────────\n📌 **要約**'"$_ja_tag"$'：\n\n' ;;
+  5y)      SEP=$'\n\n────────────────────────\n👶 **5歳**の子にもわかるように'"$_ja_tag"$'：\n\n' ;;
+  caveman) SEP=$'\n\n────────────────────────\n🦴 **ウホッ。** オレ言う'"$_ja_tag"$'：\n\n' ;;
+  *)
+    if claudish_is_japanese "$OUT_LANG"; then
+      SEP=$'\n\n────────────────────────\n💬 **やさしい日本語**で：\n\n'
+    else
+      SEP=$'\n\n────────────────────────\n💬 **やさしい言葉**で'"$_ja_tag"$'：\n\n'
+    fi
+    ;;
 esac
 dbg "language=${OUT_LANG:-same as the message (default)} style=${STYLE:-default}"
 
@@ -300,6 +309,13 @@ else
   # prompt in full, and it states its own language.
   if [ -n "$OUT_LANG" ]; then
     sys="$sys"$'\n\n'"Write the rewrite in $OUT_LANG instead, whatever language the assistant's message is in. Use $OUT_LANG for all prose, including headings and lists. Keep code, identifiers, file paths, commands, and quoted output exactly as they are."
+    if claudish_is_japanese "$OUT_LANG"; then
+      case "$STYLE" in
+        5y)      sys="$sys"$'\n\n'"Because the target is Japanese, write the way a picture book talks to a small child: mostly hiragana, very few kanji, and the gentle です/ます form." ;;
+        caveman) sys="$sys"$'\n\n'"Because the target is Japanese, write 原始人 (caveman) Japanese, not polite Japanese: drop particles and です/ます, and chop everything into short, blunt phrases, for example 「オレ、バグ、見つけた。いま、直す。」" ;;
+        *)       sys="$sys"$'\n\n'"Because the target is Japanese, write easy Japanese (やさしい日本語): short sentences, the polite です/ます form, and everyday words instead of hard kanji compounds." ;;
+      esac
+    fi
   fi
   if [ -n "${CLAUDISH_PROMPT_FILE:-}" ]; then
     _p=""
@@ -354,7 +370,7 @@ if [ -z "$rewrite" ]; then
   if [ "$NOTICE" = "1" ] && [ ! -e "$notified" ] && [ -n "$NOTICE_WHY" ]; then
     : > "$notified" 2>/dev/null || true
     last_delta="$(cat "$final_part" 2>/dev/null)"
-    note=$'\n\n────────────────────────\n'"⚠️ claudish-to-english: $NOTICE_WHY. Showing Claude's original text unchanged. Shown once per session; set CLAUDISH_NOTICE=0 to silence."
+    note=$'\n\n────────────────────────\n'"⚠️ claudish-to-japanese: $NOTICE_WHY. Showing Claude's original text unchanged. Shown once per session; set CLAUDISH_NOTICE=0 to silence."
     out="$BUF_ROOT/$sid.$mid.notice"
     if [ "$MODE" = "replace" ]; then
       { printf '%s' "$full"; printf '%s' "$note"; } > "$out" 2>/dev/null
@@ -383,7 +399,7 @@ if [ "$NOTICE" = "1" ] && [ ! -e "$oauth_noted" ]; then
   _onote="$(llm_oauth_note 2>/dev/null)"
   if [ -n "$_onote" ]; then
     : > "$oauth_noted" 2>/dev/null || true
-    oauth_note=$'\n\n'"⚠️ claudish-to-english: $_onote. Shown once per session; set CLAUDISH_NOTICE=0 to silence."
+    oauth_note=$'\n\n'"⚠️ claudish-to-japanese: $_onote. Shown once per session; set CLAUDISH_NOTICE=0 to silence."
   fi
 fi
 

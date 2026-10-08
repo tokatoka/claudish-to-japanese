@@ -5,6 +5,45 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **claudish-to-japanese: a Japanese edition of the plugin.** Rewrites now
+  come out in easy Japanese (やさしい日本語) by default, whatever language
+  Claude answers in, because readers who install a "to Japanese" plugin want
+  Japanese every time. Each style asks the model for the Japanese form that
+  fits it: short sentences and the polite です/ます form for the default and
+  `tldr`, mostly hiragana for `5y`, and 原始人 (caveman) speech for `caveman`.
+  The labels above the rewrite are in Japanese too (💬 **やさしい日本語**で：,
+  📌 **要約**：, 👶 **5歳**の子にもわかるように：, 🦴 **ウホッ。** オレ言う：). The
+  Markdown hook writes its files in easy Japanese as well.
+- **A `pi` provider** (`CLAUDISH_PROVIDER=pi`) runs rewrites through the pi
+  coding agent CLI (`pi -p`), using pi's own login, so any model pi can reach
+  works without a key in Claude Code's environment. Pick the model with
+  `CLAUDISH_MODEL` or `/claudish model`, in pi's `provider/id` form (for
+  example `opencode-go/deepseek-v4.1-flash`). Set the model explicitly: a
+  model switched inside an interactive pi session is not saved as pi's default,
+  so leaving it empty can quietly use a different model. pi runs with every
+  tool, extension, skill, context file, and session save turned off, from the
+  temp directory, so a rewrite can neither touch the project nor leave a pi
+  session behind. The message goes in on stdin rather than as an argument, so
+  long messages are not cut off by the command-line size limit. Thinking is
+  off by default (`CLAUDISH_PI_THINKING`, e.g. `low`; set it empty for pi's own
+  default), because a plain rewrite gains nothing from it and you pay for every
+  thinking token.
+
+### Changed
+- **The `language` key in `.claude/settings*.json` no longer picks the rewrite
+  language.** That key sets the language Claude answers in. Following it would
+  turn a Japanese rewrite into, say, an English one whenever the session speaks
+  English, which defeats this edition. The order is now: `/claudish language`,
+  then `CLAUDISH_LANG`, then Japanese. Set `CLAUDISH_LANG=` (empty) to keep
+  each message's own language.
+- **Buffers, debug logs, and notices now use the name `claudish-to-japanese`**,
+  so this edition and claudish-to-english never clear each other's buffers if
+  both are installed. The Markdown "already rewritten" marker keeps its old
+  name, so files the English edition already rewrote are not rewritten again.
+
 ## [0.9.0] - 2026-08-28
 
 ### Added

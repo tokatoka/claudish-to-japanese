@@ -134,7 +134,6 @@ style_source() {
 lang_source() {
   [ -f "$LANG_FILE" ] && [ -n "$(head -c 64 "$LANG_FILE" 2>/dev/null | tr -d '[:space:]')" ] && { echo flag; return; }
   [ -n "${CLAUDISH_LANG+x}" ] && { echo env; return; }
-  [ -n "$(claudish_language "$PWD" 2>/dev/null)" ] && { echo settings; return; }
   echo default
 }
 model_source() {
@@ -169,10 +168,9 @@ style_label() {
 }
 language_label() {
   case "$(lang_source)" in
-    flag)     WARN=1; printf '⚠ /claudish — beats env & settings, persists across sessions' ;;
+    flag)     WARN=1; printf '⚠ /claudish — beats env CLAUDISH_LANG, persists across sessions' ;;
     env)      printf 'env CLAUDISH_LANG' ;;
-    settings) printf 'your .claude/settings.json language' ;;
-    *)        printf 'default — keeps each message'\''s own language' ;;
+    *)        printf 'default — easy Japanese' ;;
   esac
 }
 model_label() {
