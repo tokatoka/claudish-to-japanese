@@ -81,10 +81,11 @@
 # ---------------------------------------------------------------------------
 set -uo pipefail
 
-ENABLED="${CLAUDISH_ENABLED:-1}"
+ENABLED="${CLAUDISH_ENABLED:-0}"
 # Runtime kill switch: env is frozen at session launch, so a hotkey or script
 # can't flip CLAUDISH_ENABLED mid-session. A flag file can be checked fresh on
 # every invocation. Create it to pause rewrites instantly; remove it to resume.
+[ -f "${CLAUDISH_ON_FILE:-$HOME/.claude/claudish-on}" ] && ENABLED=1
 [ -f "${CLAUDISH_OFF_FILE:-$HOME/.claude/claudish-off}" ] && ENABLED=0
 MODE="${CLAUDISH_MODE:-append}"
 # Runtime display-mode override written by /claudish (claudish-ctl.sh): like the
@@ -273,7 +274,7 @@ case "$STYLE" in
   caveman) SEP=$'\n\n────────────────────────\n🦴 **ウホッ。** オレ言う'"$_ja_tag"$'：\n\n' ;;
   *)
     if claudish_is_japanese "$OUT_LANG"; then
-      SEP=$'\n\n────────────────────────\n💬 **やさしい日本語**で：\n\n'
+      SEP=$'\n\n────────────────────────\n💬 **日本語**で：\n\n'
     else
       SEP=$'\n\n────────────────────────\n💬 **やさしい言葉**で'"$_ja_tag"$'：\n\n'
     fi
@@ -313,7 +314,7 @@ else
       case "$STYLE" in
         5y)      sys="$sys"$'\n\n'"Because the target is Japanese, write the way a picture book talks to a small child: mostly hiragana, very few kanji, and the gentle です/ます form." ;;
         caveman) sys="$sys"$'\n\n'"Because the target is Japanese, write 原始人 (caveman) Japanese, not polite Japanese: drop particles and です/ます, and chop everything into short, blunt phrases, for example 「オレ、バグ、見つけた。いま、直す。」" ;;
-        *)       sys="$sys"$'\n\n'"Because the target is Japanese, write easy Japanese (やさしい日本語): short sentences, the polite です/ます form, and everyday words instead of hard kanji compounds." ;;
+        *)       sys="$sys"$'\n\n'"Because the target is Japanese, write natural, standard Japanese, the way a fluent native writer would. Do not simplify it into easy Japanese (やさしい日本語)." ;;
       esac
     fi
   fi

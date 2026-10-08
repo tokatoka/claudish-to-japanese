@@ -62,10 +62,11 @@
 # ---------------------------------------------------------------------------
 set -uo pipefail
 
-ENABLED="${CLAUDISH_ENABLED:-1}"
+ENABLED="${CLAUDISH_ENABLED:-0}"
 # Runtime kill switch: env is frozen at session launch, so a hotkey or script
 # can't flip CLAUDISH_ENABLED mid-session. A flag file can be checked fresh on
 # every invocation. Create it to pause rewrites instantly; remove it to resume.
+[ -f "${CLAUDISH_ON_FILE:-$HOME/.claude/claudish-on}" ] && ENABLED=1
 [ -f "${CLAUDISH_OFF_FILE:-$HOME/.claude/claudish-off}" ] && ENABLED=0
 MD_DIR="${CLAUDISH_MD_DIR:-}"
 MD_MODE="${CLAUDISH_MD_MODE:-sibling}"
@@ -205,7 +206,7 @@ else
   if [ -n "$OUT_LANG" ]; then
     sys="$sys"$'\n\n'"Write the rewritten Markdown in $OUT_LANG instead, whatever language the original is in. Use $OUT_LANG for all prose, including headings, list items, and table cells. Keep code, identifiers, file paths, link targets, and YAML frontmatter exactly as they are."
     if claudish_is_japanese "$OUT_LANG"; then
-      sys="$sys"$'\n\n'"Because the target is Japanese, write easy Japanese (やさしい日本語): short sentences, the polite です/ます form, and everyday words instead of hard kanji compounds."
+      sys="$sys"$'\n\n'"Because the target is Japanese, write natural, standard Japanese, the way a fluent native writer would. Do not simplify it into easy Japanese (やさしい日本語)."
     fi
   fi
   if [ -n "${CLAUDISH_MD_PROMPT_FILE:-}" ]; then

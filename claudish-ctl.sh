@@ -42,6 +42,7 @@ set -uo pipefail
 SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 OFF_FILE="${CLAUDISH_OFF_FILE:-$HOME/.claude/claudish-off}"
+ON_FILE="${CLAUDISH_ON_FILE:-$HOME/.claude/claudish-on}"
 MODE_FILE="${CLAUDISH_MODE_FILE:-$HOME/.claude/claudish-mode}"
 STYLE_FILE="${CLAUDISH_STYLE_FILE:-$HOME/.claude/claudish-style}"
 LANG_FILE="${CLAUDISH_LANG_FILE:-$HOME/.claude/claudish-lang}"
@@ -109,9 +110,22 @@ current_style() {
   case "$s" in tldr|5y|caveman) printf '%s' "$s"; return ;; esac
   case "${CLAUDISH_STYLE:-}" in tldr|5y|caveman) printf '%s' "$CLAUDISH_STYLE" ;; *) printf 'default' ;; esac
 }
-state() { [ -f "$OFF_FILE" ] && printf 'off' || current_mode; }
+state() {
+  [ -f "$OFF_FILE" ] && { printf 'off'; return; }
+  { [ -f "$ON_FILE" ] || [ "${CLAUDISH_ENABLED:-0}" = "1" ]; } && { current_mode; return; }
+  printf 'off'
+}
 
-turn_on() { rm -f "$OFF_FILE" 2>/dev/null || fail "cannot remove $OFF_FILE"; }
+turn_on() {
+  rm -f "$OFF_FILE" 2>/dev/null || fail "cannot remove $OFF_FILE"
+  { : > "$ON_FILE"; } 2>/dev/null || fail "cannot create $ON_FILE"
+}
+turn_off() {
+  rm -f "$ON_FILE" 2>/dev/null || fail "cannot remove $ON_FILE"
+  if [ "${CLAUDISH_ENABLED:-0}" = "1" ]; then
+    { : > "$OFF_FILE"; } 2>/dev/null || fail "cannot create $OFF_FILE"
+  fi
+}
 set_mode() { { printf '%s\n' "$1" > "$MODE_FILE"; } 2>/dev/null || fail "cannot write $MODE_FILE"; turn_on; }
 
 # ---- provenance: where does each effective value come from? ---------------
@@ -151,31 +165,42 @@ status_label() {
     *)       _mean="original + rewrite" ;;
   esac
   if [ -f "$OFF_FILE" ]; then
-    WARN=1; printf '⚠ /claudish off — %s; persists across sessions' "$_mean"; return
+    WARN=1; printf '⚠ /c2j:c2j off — %s; persists across sessions' "$_mean"; return
+  fi
+  if [ "$(state)" = off ]; then
+    if [ -n "${CLAUDISH_ENABLED+x}" ]; then
+      printf 'env CLAUDISH_ENABLED — %s' "$_mean"
+    else
+      printf 'default — %s; turn on with /c2j:c2j on' "$_mean"
+    fi
+    return
+  fi
+  if [ -f "$ON_FILE" ] && [ "$(mode_source)" != flag ]; then
+    WARN=1; printf '⚠ /c2j:c2j on — %s; persists across sessions' "$_mean"; return
   fi
   case "$(mode_source)" in
-    flag) WARN=1; printf '⚠ /claudish — %s; beats env, persists across sessions' "$_mean" ;;
+    flag) WARN=1; printf '⚠ /c2j:c2j — %s; beats env, persists across sessions' "$_mean" ;;
     env)  printf 'env CLAUDISH_MODE — %s' "$_mean" ;;
     *)    printf 'default — %s' "$_mean" ;;
   esac
 }
 style_label() {
   case "$(style_source)" in
-    flag) WARN=1; printf '⚠ /claudish — beats env CLAUDISH_STYLE, persists across sessions' ;;
+    flag) WARN=1; printf '⚠ /c2j:c2j — beats env CLAUDISH_STYLE, persists across sessions' ;;
     env)  printf 'env CLAUDISH_STYLE' ;;
     *)    printf 'default — plain-language rewrite' ;;
   esac
 }
 language_label() {
   case "$(lang_source)" in
-    flag)     WARN=1; printf '⚠ /claudish — beats env CLAUDISH_LANG, persists across sessions' ;;
+    flag)     WARN=1; printf '⚠ /c2j:c2j — beats env CLAUDISH_LANG, persists across sessions' ;;
     env)      printf 'env CLAUDISH_LANG' ;;
-    *)        printf 'default — easy Japanese' ;;
+    *)        printf 'default — Japanese' ;;
   esac
 }
 model_label() {
   case "$(model_source)" in
-    flag)     WARN=1; printf '⚠ /claudish — beats env CLAUDISH_MODEL, persists across sessions' ;;
+    flag)     WARN=1; printf '⚠ /c2j:c2j — beats env CLAUDISH_MODEL, persists across sessions' ;;
     env)      printf 'env CLAUDISH_MODEL' ;;
     *)        printf '%s provider default' "${PROVIDER:-ollama}" ;;
   esac
@@ -191,11 +216,11 @@ dashboard() {
   printf '  %-9s %-16s · %s\n' 'language' "$(current_lang)"     "$_ll"
   printf '  %-9s %-16s · %s\n' 'model'    "$(current_model)"    "$_ml"
   printf '  %-9s %-16s · %s\n' 'provider' "${PROVIDER:-ollama}" "$_pl"
-  printf '\n  change   /claudish on · off · append · replace · style <tldr|5y|caveman> · language <name> · model <name>\n'
-  printf '  other    /claudish last · cycle · reset (clear all overrides) · status\n'
+  printf '\n  change   /c2j:c2j on · off · append · replace · style <tldr|5y|caveman> · language <name> · model <name>\n'
+  printf '  other    /c2j:c2j last · cycle · reset (clear all overrides) · status\n'
   if [ "$WARN" = "1" ]; then
-    printf '\n  ⚠ lines above are /claudish overrides in ~/.claude/claudish-* that persist\n'
-    printf '    across sessions. Reset one with its `default` form, or all with /claudish reset.\n'
+    printf '\n  ⚠ lines above are /c2j:c2j overrides in ~/.claude/claudish-* that persist\n'
+    printf '    across sessions. Reset one with its `default` form, or all with /c2j:c2j reset.\n'
   fi
   printf '\n'
 }
@@ -231,7 +256,7 @@ esac
 # Mutating commands.
 case "$cmd" in
   on)      turn_on ;;
-  off)     { : > "$OFF_FILE"; } 2>/dev/null || fail "cannot create $OFF_FILE" ;;
+  off)     turn_off ;;
   append)  set_mode append ;;
   replace) set_mode replace ;;
   style)
@@ -265,12 +290,12 @@ case "$cmd" in
     esac
     turn_on
     ;;
-  reset)   rm -f "$OFF_FILE" "$MODE_FILE" "$STYLE_FILE" "$LANG_FILE" "$MODEL_FILE" 2>/dev/null || fail "cannot remove one or more flag files" ;;
+  reset)   rm -f "$OFF_FILE" "$ON_FILE" "$MODE_FILE" "$STYLE_FILE" "$LANG_FILE" "$MODEL_FILE" 2>/dev/null || fail "cannot remove one or more flag files" ;;
   cycle)
     case "$(state)" in
       off)    set_mode append ;;
       append) set_mode replace ;;
-      *)      { : > "$OFF_FILE"; } 2>/dev/null || fail "cannot create $OFF_FILE" ;;
+      *)      turn_off ;;
     esac
     ;;
   *)

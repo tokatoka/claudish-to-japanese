@@ -32,6 +32,7 @@ SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 cat >/dev/null 2>&1 || true
 
 OFF_FILE="${CLAUDISH_OFF_FILE:-$HOME/.claude/claudish-off}"
+ON_FILE="${CLAUDISH_ON_FILE:-$HOME/.claude/claudish-on}"
 MODE_FILE="${CLAUDISH_MODE_FILE:-$HOME/.claude/claudish-mode}"
 STYLE_FILE="${CLAUDISH_STYLE_FILE:-$HOME/.claude/claudish-style}"
 LANG_FILE="${CLAUDISH_LANG_FILE:-$HOME/.claude/claudish-lang}"
@@ -41,6 +42,7 @@ parts=""
 add() { parts="${parts:+$parts, }$1"; }
 
 [ -f "$OFF_FILE" ] && add "off (rewrites paused)"
+[ -f "$ON_FILE" ] && [ ! -f "$OFF_FILE" ] && add "on (rewrites active)"
 
 if [ -f "$MODE_FILE" ]; then
   case "$(cat "$MODE_FILE" 2>/dev/null | tr -d '[:space:]')" in
@@ -75,6 +77,6 @@ fi
 # Nothing overridden -> stay completely silent.
 [ -n "$parts" ] || exit 0
 
-msg="claudish: overrides from an earlier /claudish are still active — ${parts}. Run /claudish to review, or /claudish reset to clear (set CLAUDISH_NOTICE=0 to silence)."
+msg="claudish: overrides from an earlier /c2j:c2j are still active — ${parts}. Run /c2j:c2j to review, or /c2j:c2j reset to clear (set CLAUDISH_NOTICE=0 to silence)."
 jq -n --arg m "$msg" '{systemMessage:$m}' 2>/dev/null || exit 0
 exit 0

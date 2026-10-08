@@ -9,18 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **claudish-to-japanese: a Japanese edition of the plugin.** Rewrites now
-  come out in easy Japanese (やさしい日本語) by default, whatever language
-  Claude answers in, because readers who install a "to Japanese" plugin want
-  Japanese every time. Each style asks the model for the Japanese form that
-  fits it: short sentences and the polite です/ます form for the default and
-  `tldr`, mostly hiragana for `5y`, and 原始人 (caveman) speech for `caveman`.
-  The labels above the rewrite are in Japanese too (💬 **やさしい日本語**で：,
+  come out in Japanese by default, whatever language Claude answers in,
+  because readers who install a "to Japanese" plugin want Japanese every time.
+  The default and `tldr` styles write natural, standard Japanese, the way a
+  fluent native writer would, and are told not to simplify it into easy
+  Japanese (やさしい日本語), which reads as talking down to a fluent reader.
+  `5y` writes mostly in hiragana, and `caveman` writes 原始人 (caveman) speech.
+  The labels above the rewrite are in Japanese too (💬 **日本語**で：,
   📌 **要約**：, 👶 **5歳**の子にもわかるように：, 🦴 **ウホッ。** オレ言う：). The
-  Markdown hook writes its files in easy Japanese as well.
+  Markdown hook writes its files in Japanese as well.
 - **A `pi` provider** (`CLAUDISH_PROVIDER=pi`) runs rewrites through the pi
   coding agent CLI (`pi -p`), using pi's own login, so any model pi can reach
   works without a key in Claude Code's environment. Pick the model with
-  `CLAUDISH_MODEL` or `/claudish model`, in pi's `provider/id` form (for
+  `CLAUDISH_MODEL` or `/c2j:c2j model`, in pi's `provider/id` form (for
   example `opencode-go/deepseek-v4.1-flash`). Set the model explicitly: a
   model switched inside an interactive pi session is not saved as pi's default,
   so leaving it empty can quietly use a different model. pi runs with every
@@ -36,9 +37,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The `language` key in `.claude/settings*.json` no longer picks the rewrite
   language.** That key sets the language Claude answers in. Following it would
   turn a Japanese rewrite into, say, an English one whenever the session speaks
-  English, which defeats this edition. The order is now: `/claudish language`,
+  English, which defeats this edition. The order is now: `/c2j:c2j language`,
   then `CLAUDISH_LANG`, then Japanese. Set `CLAUDISH_LANG=` (empty) to keep
   each message's own language.
+- **Rewrites are off by default.** Every rewrite costs a model call, so nothing
+  runs until you ask: `/c2j:c2j on` (or `append`, `replace`, `style`,
+  `language`, `model`, which also turn it on) creates `~/.claude/claudish-on`,
+  which persists across sessions, and the session-start notice says so. `off`
+  removes it, and writes the old `~/.claude/claudish-off` only when
+  `CLAUDISH_ENABLED=1` would otherwise keep rewrites on, so turning it off
+  leaves no file behind to announce at every session start. Precedence:
+  off-file, then on-file, then `CLAUDISH_ENABLED`, then off. Tests that drive
+  the hooks directly now need `CLAUDISH_ENABLED=1` (and `CLAUDISH_ON_FILE`
+  pointed away from your own flag file).
+- **The plugin and its command are renamed `c2j`**, so the command is
+  `/c2j:c2j` instead of `/claudish-to-japanese:claudish`. Claude Code always
+  prefixes a plugin's commands with the plugin name and does not accept the
+  bare `/c2j`, so the plugin name is what keeps the command short. On-screen
+  hints in the dashboard and the session-start notice use the new name.
+  Reinstall as `c2j@claudish-to-japanese`.
 - **Buffers, debug logs, and notices now use the name `claudish-to-japanese`**,
   so this edition and claudish-to-english never clear each other's buffers if
   both are installed. The Markdown "already rewritten" marker keeps its old
